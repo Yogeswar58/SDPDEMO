@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kyber + AES Security Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="max-w-6xl mx-auto px-4 py-10 space-y-12">
+    <h1 class="text-3xl md:text-4xl font-extrabold text-center text-blue-700">Kyber512 + AES-256 Encryption Strength Visualized</h1>
+
+    <div class="flex flex-wrap justify-center gap-3">
+      <button onclick="setData('laptop')" class="btn">Laptop</button>
+      <button onclick="setData('supercomputer')" class="btn">Supercomputer</button>
+      <button onclick="setData('quantum')" class="btn">Quantum</button>
+      <button onclick="setData('microsoft')" class="btn">Microsoft Quantum</button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="cards"></div>
+
+    <div class="space-y-12">
+      <div class="bg-white shadow p-4 rounded">
+        <h2 class="text-xl font-semibold text-center mb-3">⏱️ Time to Break by Algorithm (Log Scale)</h2>
+        <div class="w-full overflow-x-auto">
+          <canvas id="logChart" height="160"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white shadow p-4 rounded">
+        <h2 class="text-xl font-semibold text-center mb-3">📦 Encryption Time Based on File Size</h2>
+        <div class="w-full overflow-x-auto">
+          <canvas id="fileSizeChart" height="160"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white shadow p-4 rounded">
+        <h2 class="text-xl font-semibold text-center mb-3">⚠️ Weak Encryption Algorithms (Break Time)</h2>
+        <ul class="list-disc list-inside text-sm text-gray-700 mb-4">
+          <li>MD5: a few seconds (0.00001 years)</li>
+          <li>SHA1: ~8 hours (0.001 years)</li>
+          <li>DES: ~3.6 days (0.01 years)</li>
+          <li>RC4: ~1 month (0.1 years)</li>
+          <li>Triple DES: ~10 years</li>
+        </ul>
+        <div class="w-full overflow-x-auto">
+          <canvas id="weakChart" height="160"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-center text-sm text-gray-600 leading-relaxed max-w-2xl mx-auto">
+      This system uses <strong>Kyber512</strong> to securely exchange keys and <strong>AES-256</strong> to encrypt the data. Together, they form a hybrid post-quantum system that must be broken at both levels. Brute-forcing AES alone takes billions of years even for a quantum machine. Weak legacy ciphers like MD5 or DES can be cracked in seconds — this visualization shows why modern cryptography matters.
+    </p>
+  </div>
+
+  <style>
+    .btn {
+      padding: 0.5rem 1.2rem;
+      background-color: #2563eb;
+      color: white;
+      border-radius: 0.375rem;
+      font-weight: 600;
+      transition: background 0.3s ease;
+    }
+    .btn:hover {
+      background-color: #1e40af;
+    }
+  </style>
+
+  <script>
+    const breakTimes = {
+      laptop: { aes: 1e60, kyber: 1e26 },
+      supercomputer: { aes: 1e55, kyber: 1e23 },
+      quantum: { aes: 1e38, kyber: 1e9 },
+      microsoft: { aes: 1e36, kyber: 1e8 }
+    };
+
+    const encryptionSpeeds = [
+      { label: "1MB", time: 0.2 },
+      { label: "5MB", time: 0.6 },
+      { label: "10MB", time: 1.1 },
+      { label: "50MB", time: 5.5 },
+      { label: "100MB", time: 11 }
+    ];
+
+    const weakAlgos = [
+      { algo: "MD5", time: 0.00001 },
+      { algo: "SHA1", time: 0.001 },
+      { algo: "DES", time: 0.01 },
+      { algo: "RC4", time: 0.1 },
+      { algo: "Triple DES", time: 10 }
+    ];
+
+    const logChart = new Chart(document.getElementById("logChart"), {
+      type: 'bar',
+      data: { labels: [], datasets: [{ label: 'Log₁₀(Time to Break in Years)', backgroundColor: '#6366f1', data: [] }] },
+      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+
+    const fileSizeChart = new Chart(document.getElementById("fileSizeChart"), {
+      type: 'bar',
+      data: {
+        labels: encryptionSpeeds.map(d => d.label),
+        datasets: [{ label: 'Encryption Time (s)', backgroundColor: '#4f46e5', data: encryptionSpeeds.map(d => d.time) }]
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+
+    const weakChart = new Chart(document.getElementById("weakChart"), {
+      type: 'bar',
+      data: {
+        labels: weakAlgos.map(d => d.algo),
+        datasets: [{ label: 'Break Time (Years)', backgroundColor: '#ef4444', data: weakAlgos.map(d => d.time) }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ${formatReadableTime(ctx.raw)}`
+            }
+          }
+        }
+      }
+    });
+
+    function displayYears(val) {
+      if (val > 1e12) return (val / 1e12).toFixed(2) + " trillion years";
+      if (val > 1e9) return (val / 1e9).toFixed(2) + " billion years";
+      if (val > 1e6) return (val / 1e6).toFixed(2) + " million years";
+      return val.toFixed(4) + " years";
+    }
+
+    function formatReadableTime(years) {
+      const days = years * 365;
+      if (days < 1) return `${Math.round(days * 24)} hours`;
+      if (days < 30) return `${Math.round(days)} days`;
+      if (days < 365) return `${Math.round(days / 30)} months`;
+      return `${years.toFixed(2)} years`;
+    }
+
+    function setData(mode) {
+      const target = breakTimes[mode];
+
+      const cards = document.getElementById("cards");
+      cards.innerHTML = [
+        `<div class="bg-white p-6 rounded shadow">
+          <h2 class="text-lg font-semibold text-indigo-700">AES-256 (Symmetric Encryption)</h2>
+          <p class="mt-1 text-sm">Estimated Time to Break: <strong>${displayYears(target.aes)}</strong></p>
+        </div>`,
+        `<div class="bg-white p-6 rounded shadow">
+          <h2 class="text-lg font-semibold text-indigo-700">Kyber512 (Post-Quantum Key Exchange)</h2>
+          <p class="mt-1 text-sm">Estimated Time to Break: <strong>${displayYears(target.kyber)}</strong></p>
+        </div>`
+      ].join("");
+
+      logChart.data.labels = ["AES-256", "Kyber512"];
+      logChart.data.datasets[0].data = [Math.log10(target.aes), Math.log10(target.kyber)];
+      logChart.update();
+    }
+
+    setData('laptop'); // Initial load
+  </script>
+</body>
+</html>
